@@ -1,0 +1,10 @@
+Date: 7/4/2025
+Time: 14:23
+Phone Number: +5511947002757
+Message: teste feito
+--------------------
+Date: 7/4/2025
+Time: 14:29
+Phone Number: +5511947002757
+Message: teste feito pelo python
+--------------------
