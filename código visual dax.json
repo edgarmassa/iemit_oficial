@@ -1,0 +1,104 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "Gráfico de Gantt com hierarquia (Macro Entregas e Entregáveis) e dependências.",
+  "width": 800,
+  "height": 400,
+  "padding": 5,
+  "signals": [
+    { "name": "width", "update": "containerSize()[0]" },
+    { "name": "height", "update": "containerSize()[1]" },
+    { "name": "tooltip", "value": {} }
+  ],
+  "data": [
+    { "name": "dataset" },
+    {
+      "name": "tarefas",
+      "source": "dataset",
+      "transform": [
+        { "type": "formula", "as": "inicio", "expr": "toDate(datum.inicio)" },
+        { "type": "formula", "as": "fim", "expr": "toDate(datum.fim)" },
+        { "type": "formula", "as": "dias", "expr": "(datum.fim - datum.inicio)/(1000*60*60*24)" },
+        { "type": "formula", "as": "id", "expr": "datum['ID-Macro-Novo']" },
+        { "type": "formula", "as": "nivel", "expr": "datum.Entregáveis === '' ? 0 : 1" },
+        { "type": "formula", "as": "categoria", "expr": "datum.Entregáveis === '' ? datum['Macro Entregas'] : '   ' + datum.Entregáveis" }
+      ]
+    },
+    {
+      "name": "hierarquia",
+      "source": "tarefas",
+      "transform": [
+        { "type": "collect", "sort": { "field": ["Macro Entregas", "nivel", "Entregáveis"], "order": ["ascending", "ascending", "ascending"] } },
+        { "type": "window", "ops": ["row_number"], "as": ["ordem"] }
+      ]
+    },
+    {
+      "name": "dependencias",
+      "source": "hierarquia",
+      "transform": [
+        { "type": "filter", "expr": "datum['Dependências-Macro'] !== ''" },
+        { "type": "formula", "as": "dependencias", "expr": "split(datum['Dependências-Macro'], ',')" },
+        { "type": "flatten", "fields": ["dependencias"] },
+        { "type": "lookup", "from": "hierarquia", "key": "ID-Macro-Novo", "fields": ["dependencias"], "values": ["fim", "categoria"], "as": ["fimOrigem", "categoriaOrigem"] }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "x",
+      "type": "time",
+      "domain": { "data": "hierarquia", "fields": ["inicio", "fim"] },
+      "range": "width"
+    },
+    {
+      "name": "y",
+      "type": "band",
+      "domain": { "data": "hierarquia", "field": "categoria" },
+      "range": "height",
+      "padding": 0.15
+    }
+  ],
+  "axes": [
+    { "orient": "bottom", "scale": "x", "format": "%d/%m", "title": "Data" },
+    { "orient": "left", "scale": "y", "title": "Tarefas", "labelFontWeight": {"signal": "datum.value.trim().length < 3 ? 'bold' : 'normal'"} }
+  ],
+  "marks": [
+    {
+      "type": "rect",
+      "from": { "data": "hierarquia" },
+      "encode": {
+        "enter": {
+          "x": { "scale": "x", "field": "inicio" },
+          "x2": { "scale": "x", "field": "fim" },
+          "y": { "scale": "y", "field": "categoria" },
+          "height": { "scale": "y", "band": 1 },
+          "fill": { "value": "#4db04a" },
+          "cornerRadius": { "value": 4 },
+          "tooltip": {
+            "signal": "{Fase: datum['Macro Entregas'], Entregável: datum.Entregáveis, Início: timeFormat(datum.inicio, '%d/%m/%Y'), Fim: timeFormat(datum.fim, '%d/%m/%Y'), Dias: round(datum.dias)}"
+          }
+        },
+        "update": {
+          "fillOpacity": [
+            { "test": "datum.Entregáveis === ''", "value": 0 },
+            { "value": 1 }
+          ]
+        }
+      }
+    },
+    {
+      "type": "rule",
+      "from": { "data": "dependencias" },
+      "encode": {
+        "enter": {
+          "x": { "scale": "x", "field": "fimOrigem" },
+          "x2": { "scale": "x", "field": "inicio" },
+          "y": { "scale": "y", "field": "categoriaOrigem" },
+          "y2": { "scale": "y", "field": "categoria" },
+          "stroke": { "value": "#888" },
+          "strokeDash": { "value": [4, 4] },
+          "strokeWidth": { "value": 1 }
+        }
+      }
+    }
+  ]
+}
